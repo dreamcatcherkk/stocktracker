@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Tracker</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;padding:2rem;min-height:100vh}
+  h1{font-size:22px;font-weight:500;margin-bottom:4px}
+  .ts{font-size:12px;color:#888;margin-bottom:1.25rem;min-height:16px}
+  .tabs{display:flex;gap:0;margin-bottom:1.5rem;border-bottom:1px solid #e5e5e3}
+  .tab{padding:8px 20px;font-size:13px;cursor:pointer;border:none;background:none;color:#888;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s}
+  .tab.active{color:#1a1a1a;font-weight:500;border-bottom-color:#1a1a1a}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.5rem}
+  .metric{background:#fff;border-radius:10px;padding:1rem 1.2rem;border:1px solid #e5e5e3}
+  .metric-label{font-size:12px;color:#888;margin-bottom:4px}
+  .metric-value{font-size:20px;font-weight:500}
+  .pos{color:#1D9E75}.neg{color:#E24B4A}
+  .actions{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+  button{background:#fff;border:1px solid #d0d0cc;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit;color:#1a1a1a;transition:background .15s}
+  button:hover{background:#f0f0ee}
+  button:active{transform:scale(.98)}
+  .add-form{background:#f0f0ee;border-radius:10px;padding:1rem 1.2rem;margin-bottom:1.25rem;display:none}
+  .add-form.open{display:block}
+  .form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:10px}
+  .form-row label{font-size:12px;color:#666;display:block;margin-bottom:3px}
+  input[type=text],input[type=number],input[type=date],select{width:100%;padding:7px 10px;border:1px solid #d0d0cc;border-radius:7px;font-size:13px;font-family:inherit;background:#fff;outline:none;color:#1a1a1a}
+  input:focus,select:focus{border-color:#888}
+  .err{font-size:12px;color:#E24B4A;margin-top:6px;min-height:18px}
+  .table-wrap{background:#fff;border:1px solid #e5e5e3;border-radius:12px;overflow-x:auto;margin-bottom:1.5rem}
+  table{width:100%;border-collapse:collapse;min-width:600px}
+  th{font-size:11px;font-weight:500;color:#888;text-align:left;padding:10px 14px;border-bottom:1px solid #e5e5e3;background:#fafaf8;white-space:nowrap}
+  th.r{text-align:right}
+  td{font-size:13px;padding:10px 14px;border-bottom:1px solid #f0f0ee;color:#1a1a1a;white-space:nowrap}
+  td.r{text-align:right}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafaf8}
+  .badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:500}
+  .badge.pos{background:#E1F5EE;color:#0F6E56}
+  .badge.neg{background:#FCEBEB;color:#A32D2D}
+  .badge.buy{background:#E6F1FB;color:#185FA5}
+  .badge.sell{background:#FAEEDA;color:#854F0B}
+  .badge.dep{background:#E1F5EE;color:#0F6E56}
+  .badge.wit{background:#FCEBEB;color:#A32D2D}
+  .del-btn{background:none;border:none;cursor:pointer;color:#ccc;font-size:15px;padding:2px 6px;border-radius:4px;line-height:1}
+  .del-btn:hover{color:#E24B4A;background:#FCEBEB}
+  .spin{display:inline-block;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .dot{width:7px;height:7px;background:#ccc;border-radius:50%;display:inline-block;animation:blink 1s infinite}
+  @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+  .note{font-size:12px;color:#888;line-height:1.6;background:#fff;border-radius:8px;padding:.75rem 1rem;border:1px solid #e5e5e3}
+  .bal-banner{background:#fff;border:1px solid #e5e5e3;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  .bal-main{font-size:28px;font-weight:500}
+  .bal-label{font-size:12px;color:#888;margin-bottom:2px}
+  .bal-sub{font-size:13px;color:#888;margin-top:2px}
+  .empty{text-align:center;padding:2.5rem 1rem;color:#aaa;font-size:13px}
+
+  /* ── Snapshots tab ── */
+  .snap-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap}
+  .snap-toolbar select{width:auto;min-width:120px}
+  .snap-toolbar label{font-size:12px;color:#666}
+  .snap-section-title{font-size:13px;font-weight:500;color:#555;margin-bottom:.6rem;margin-top:1.25rem}
+  .snap-section-title:first-child{margin-top:0}
+  .snap-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1.5rem}
+  .snap-card{background:#fff;border:1px solid #e5e5e3;border-radius:10px;padding:.9rem 1.1rem}
+  .snap-card-label{font-size:11px;color:#888;margin-bottom:3px}
+  .snap-card-value{font-size:18px;font-weight:500}
+  .snap-card-sub{font-size:11px;color:#aaa;margin-top:2px}
+  .month-nav{display:flex;gap:6px;align-items:center}
+  .month-nav button{padding:5px 12px;font-size:12px}
+  .month-nav span{font-size:13px;font-weight:500;min-width:100px;text-align:center}
+  .snap-ticker-row{cursor:pointer}
+  .snap-ticker-row td:first-child{font-weight:500}
+  .snap-expand{background:#fafaf8;display:none}
+  .snap-expand.open{display:table-row}
+  .snap-expand td{padding:8px 14px 12px 28px;font-size:12px;color:#666;border-bottom:1px solid #f0f0ee}
+  .trend-bar-wrap{display:flex;align-items:flex-end;gap:3px;height:40px;margin-top:.5rem}
+  .trend-bar{width:28px;border-radius:3px 3px 0 0;min-height:3px;position:relative;cursor:pointer}
+  .trend-bar:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#333;color:#fff;font-size:11px;padding:3px 7px;border-radius:5px;white-space:nowrap;pointer-events:none;z-index:10}
+  .trend-label{display:flex;gap:3px;margin-top:2px}
+  .trend-label span{width:28px;font-size:9px;color:#aaa;text-align:center;overflow:hidden}
+  .snap-info{font-size:12px;color:#888;background:#fff;border:1px solid #e5e5e3;border-radius:8px;padding:.75rem 1rem;margin-top:1rem}
+  .snap-empty{text-align:center;padding:3rem 1rem;color:#aaa;font-size:13px}
+</style>
+</head>
+<body>
+
+<h1>My portfolio</h1>
+<div class="ts" id="ts"></div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('holdings')">Holdings</button>
+  <button class="tab" onclick="switchTab('snapshots')">Snapshots</button>
+  <button class="tab" onclick="switchTab('account')">Account</button>
+</div>
+
+<!-- ══════════ HOLDINGS TAB ══════════ -->
+<div class="tab-panel active" id="tab-holdings">
+  <div class="summary-grid" id="summary"></div>
+  <div class="actions">
+    <button onclick="switchTab('account');toggleForm('buy-form')">+ Buy stock</button>
+    <button onclick="switchTab('account');toggleForm('sell-form')">− Sell stock</button>
+    <button onclick="refreshAll()"><span id="spin" style="display:none" class="spin">↻</span> Refresh prices</button>
+  </div>
+  <div class="table-wrap" id="holdings-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:80px">Ticker</th>
+          <th class="r" style="width:70px">Shares</th>
+          <th class="r" style="width:88px">Avg cost</th>
+          <th class="r" style="width:94px">Live price</th>
+          <th class="r" style="width:74px">Day chg</th>
+          <th class="r" style="width:100px">Mkt value</th>
+          <th class="r" style="width:90px">Gain/loss</th>
+          <th class="r" style="width:74px">Return</th>
+        </tr>
+      </thead>
+      <tbody id="holdings-body"></tbody>
+    </table>
+  </div>
+  <div class="note">Holdings are derived from your buy/sell transactions in the Account tab. Prices from Finnhub.</div>
+</div>
+
+<!-- ══════════ SNAPSHOTS TAB ══════════ -->
+<div class="tab-panel" id="tab-snapshots">
+  <div id="snap-content"></div>
+</div>
+
+<!-- ══════════ ACCOUNT TAB ══════════ -->
+<div class="tab-panel" id="tab-account">
+
+  <div class="bal-banner">
+    <div>
+      <div class="bal-label">Cash balance</div>
+      <div class="bal-main" id="bal-display">$0.00</div>
+      <div class="bal-sub" id="bal-sub">No transactions yet</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="toggleForm('deposit-form')">+ Deposit</button>
+      <button onclick="toggleForm('withdraw-form')">− Withdraw</button>
+      <button onclick="toggleForm('buy-form')">Buy stock</button>
+      <button onclick="toggleForm('sell-form')">Sell stock</button>
+    </div>
+  </div>
+
+  <!-- Deposit -->
+  <div class="add-form" id="deposit-form">
+    <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Deposit cash</div>
+    <div class="form-row">
+      <div><label>Amount ($)</label><input id="dep-amount" type="number" placeholder="10000.00" min="0.01" step="any"></div>
+      <div><label>Date</label><input id="dep-date" type="date"></div>
+      <div><label>Note (optional)</label><input id="dep-note" type="text" placeholder="Initial deposit"></div>
+    </div>
+    <div style="display:flex;gap:8px"><button onclick="addDeposit()">Add deposit</button><button onclick="closeForm('deposit-form')">Cancel</button></div>
+    <div id="dep-err" class="err"></div>
+  </div>
+
+  <!-- Withdraw -->
+  <div class="add-form" id="withdraw-form">
+    <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Withdraw cash</div>
+    <div class="form-row">
+      <div><label>Amount ($)</label><input id="wit-amount" type="number" placeholder="1000.00" min="0.01" step="any"></div>
+      <div><label>Date</label><input id="wit-date" type="date"></div>
+      <div><label>Note (optional)</label><input id="wit-note" type="text" placeholder="Withdrawal"></div>
+    </div>
+    <div style="display:flex;gap:8px"><button onclick="addWithdrawal()">Add withdrawal</button><button onclick="closeForm('withdraw-form')">Cancel</button></div>
+    <div id="wit-err" class="err"></div>
+  </div>
+
+  <!-- Buy -->
+  <div class="add-form" id="buy-form">
+    <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Buy stock</div>
+    <div class="form-row">
+      <div><label>Ticker</label><input id="b-ticker" type="text" placeholder="AAPL" style="text-transform:uppercase"></div>
+      <div><label>Shares</label><input id="b-shares" type="number" placeholder="10" min="0.0001" step="any"></div>
+      <div><label>Price per share ($)</label><input id="b-price" type="number" placeholder="150.00" min="0" step="any"></div>
+      <div><label>Date</label><input id="b-date" type="date"></div>
+    </div>
+    <div style="display:flex;gap:8px"><button onclick="doBuy()">Confirm buy</button><button onclick="closeForm('buy-form')">Cancel</button></div>
+    <div id="buy-err" class="err"></div>
+  </div>
+
+  <!-- Sell -->
+  <div class="add-form" id="sell-form">
+    <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Sell stock</div>
+    <div class="form-row">
+      <div><label>Ticker</label><select id="s-ticker"></select></div>
+      <div><label>Shares to sell</label><input id="s-shares" type="number" placeholder="5" min="0.0001" step="any"></div>
+      <div><label>Sale price ($)</label><input id="s-price" type="number" placeholder="175.00" min="0" step="any"></div>
+      <div><label>Date</label><input id="s-date" type="date"></div>
+    </div>
+    <div style="display:flex;gap:8px"><button onclick="doSell()">Confirm sell</button><button onclick="closeForm('sell-form')">Cancel</button></div>
+    <div id="sell-err" class="err"></div>
+  </div>
+
+  <!-- Ledger table -->
+  <div class="table-wrap">
+    <table style="min-width:580px">
+      <thead>
+        <tr>
+          <th style="width:90px">Date</th>
+          <th style="width:80px">Type</th>
+          <th style="width:70px">Ticker</th>
+          <th class="r" style="width:70px">Shares</th>
+          <th class="r" style="width:100px">Price/share</th>
+          <th class="r" style="width:110px">Amount</th>
+          <th style="width:160px">Note</th>
+          <th class="r" style="width:120px">Balance after</th>
+          <th style="width:36px"></th>
+        </tr>
+      </thead>
+      <tbody id="ledger-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API_KEY = 'd7rrhh1r01qm28g7ebrgd7rrhh1r01qm28g7ebs0';
+
+let ledger = JSON.parse(localStorage.getItem('ledger') || '[]');
+
+// Load saved snapshots from localStorage
+let snapshots = JSON.parse(localStorage.getItem('snapshots') || '{}');
+// { "2025-03": { date, cash, costBasis, holdings: [{ticker,shares,avgCost,pricePerShare,mktValue,gain}], totalMktValue, totalGain } }
+
+let nextId = 1;
+let priceCache = {};
+
+// Snapshot tab state
+let snapViewMonth = null; // "YYYY-MM" currently displayed
+
+function today() { return new Date().toISOString().slice(0,10); }
+function fmt(n)  { return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtPct(n){ return (n>=0?'+':'')+n.toFixed(2)+'%'; }
+function fmtDate(d){ if(!d)return'—'; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; }
+function monthLabel(ym){ const [y,m]=ym.split('-'); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'}); }
+
+/* ─── Derive holdings from ledger up to a given date ─── */
+function computeHoldingsAsOf(dateStr) {
+  const map = {};
+  const sorted = [...ledger]
+    .filter(e => e.date <= dateStr)
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  sorted.forEach(e => {
+    if(e.type==='buy') {
+      if(!map[e.ticker]) map[e.ticker] = {shares:0, totalCost:0};
+      map[e.ticker].shares    += e.shares;
+      map[e.ticker].totalCost += e.shares * e.pricePerShare;
+    } else if(e.type==='sell') {
+      if(map[e.ticker]) {
+        map[e.ticker].shares -= e.shares;
+        const before = map[e.ticker].shares + e.shares;
+        map[e.ticker].totalCost *= (map[e.ticker].shares / before);
+        if(map[e.ticker].shares < 0.00001) delete map[e.ticker];
+      }
+    }
+  });
+  return Object.entries(map)
+    .filter(([,v])=>v.shares>0.00001)
+    .map(([ticker,v])=>({ ticker, shares:+v.shares.toFixed(6), avgCost:v.totalCost/v.shares }));
+}
+
+function computeHoldings() { return computeHoldingsAsOf(today()); }
+
+function cashBalanceAsOf(dateStr) {
+  return ledger
+    .filter(e => e.date <= dateStr)
+    .reduce((acc,e) => {
+      if(e.type==='deposit'||e.type==='sell')    return acc + e.amount;
+      if(e.type==='withdrawal'||e.type==='buy')  return acc - e.amount;
+      return acc;
+    }, 0);
+}
+
+function cashBalance() { return cashBalanceAsOf(today()); }
+
+/* ─── Tabs ─── */
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const tabNames=['holdings','snapshots','account'];
+  const idx=tabNames.indexOf(name);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  if(name==='account') { populateSellTicker(); renderLedger(); }
+  if(name==='holdings') renderHoldings();
+  if(name==='snapshots') renderSnapshots();
+}
+
+/* ─── Forms ─── */
+function toggleForm(id) {
+  const isOpen = document.getElementById(id).classList.contains('open');
+  closeAllForms();
+  if(!isOpen) openForm(id);
+}
+function openForm(id) {
+  document.getElementById(id).classList.add('open');
+  if(id==='sell-form') populateSellTicker();
+  const first = document.getElementById(id).querySelector('input,select');
+  if(first) first.focus();
+}
+function closeForm(id) { document.getElementById(id).classList.remove('open'); }
+function closeAllForms() { document.querySelectorAll('.add-form').forEach(f=>f.classList.remove('open')); }
+
+function populateSellTicker() {
+  const holdings = computeHoldings();
+  const sel = document.getElementById('s-ticker');
+  if(holdings.length===0) {
+    sel.innerHTML='<option value="">— no holdings —</option>';
+  } else {
+    sel.innerHTML = holdings.map(h=>`<option value="${h.ticker}">${h.ticker} (${h.shares%1===0?h.shares:h.shares.toFixed(4)} shares)</option>`).join('');
+  }
+}
+
+/* ─── Deposit ─── */
+function addDeposit() {
+  const a=parseFloat(document.getElementById('dep-amount').value);
+  const d=document.getElementById('dep-date').value||today();
+  const n=document.getElementById('dep-note').value.trim()||'Deposit';
+  const err=document.getElementById('dep-err');
+  if(isNaN(a)||a<=0){err.textContent='Enter a valid amount.';return;}
+  ledger.push({id:nextId++,date:d,type:'deposit',ticker:null,shares:null,pricePerShare:null,amount:+a.toFixed(2),note:n});
+  ['dep-amount','dep-date','dep-note'].forEach(id=>document.getElementById(id).value='');
+  closeForm('deposit-form');
+  renderAll();
+}
+
+/* ─── Withdraw ─── */
+function addWithdrawal() {
+  const a=parseFloat(document.getElementById('wit-amount').value);
+  const d=document.getElementById('wit-date').value||today();
+  const n=document.getElementById('wit-note').value.trim()||'Withdrawal';
+  const err=document.getElementById('wit-err');
+  if(isNaN(a)||a<=0){err.textContent='Enter a valid amount.';return;}
+  const bal=cashBalance();
+  if(a>bal+0.001){err.textContent=`Insufficient balance. Available: $${fmt(bal)}`;return;}
+  ledger.push({id:nextId++,date:d,type:'withdrawal',ticker:null,shares:null,pricePerShare:null,amount:+a.toFixed(2),note:n});
+  ['wit-amount','wit-date','wit-note'].forEach(id=>document.getElementById(id).value='');
+  closeForm('withdraw-form');
+  renderAll();
+}
+
+/* ─── Buy ─── */
+function doBuy() {
+  const t=document.getElementById('b-ticker').value.trim().toUpperCase();
+  const s=parseFloat(document.getElementById('b-shares').value);
+  const p=parseFloat(document.getElementById('b-price').value);
+  const d=document.getElementById('b-date').value||today();
+  const err=document.getElementById('buy-err');
+  err.textContent='';
+  if(!t||isNaN(s)||s<=0){err.textContent='Enter a ticker and number of shares.';return;}
+  if(isNaN(p)||p<=0){err.textContent='Enter a valid price per share.';return;}
+  const cost=+(s*p).toFixed(2);
+  const bal=cashBalance();
+  if(cost>bal+0.001){err.textContent=`Insufficient cash. Balance: $${fmt(bal)}, needed: $${fmt(cost)}`;return;}
+  ledger.push({id:nextId++,date:d,type:'buy',ticker:t,shares:+s,pricePerShare:+p.toFixed(4),amount:cost,note:''});
+  if(!priceCache[t]) priceCache[t]={price:p,chg:null};
+  ['b-ticker','b-shares','b-price','b-date'].forEach(id=>document.getElementById(id).value='');
+  closeForm('buy-form');
+  renderAll();
+  fetchPrice(t).then(r=>{ priceCache[t]=r; renderAll(); }).catch(()=>{});
+}
+
+/* ─── Sell ─── */
+function doSell() {
+  const t=document.getElementById('s-ticker').value;
+  const s=parseFloat(document.getElementById('s-shares').value);
+  const p=parseFloat(document.getElementById('s-price').value);
+  const d=document.getElementById('s-date').value||today();
+  const err=document.getElementById('sell-err');
+  err.textContent='';
+  if(!t){err.textContent='No holdings to sell.';return;}
+  if(isNaN(s)||s<=0){err.textContent='Enter shares to sell.';return;}
+  if(isNaN(p)||p<=0){err.textContent='Enter a sale price.';return;}
+  const holdings=computeHoldings();
+  const h=holdings.find(x=>x.ticker===t);
+  if(!h){err.textContent='Holding not found.';return;}
+  if(s>h.shares+0.0001){err.textContent=`You only hold ${h.shares} shares of ${t}.`;return;}
+  const proceeds=+(s*p).toFixed(2);
+  ledger.push({id:nextId++,date:d,type:'sell',ticker:t,shares:+s,pricePerShare:+p.toFixed(4),amount:proceeds,note:''});
+  ['s-shares','s-price','s-date'].forEach(id=>document.getElementById(id).value='');
+  closeForm('sell-form');
+  renderAll();
+}
+
+/* ─── Delete ledger entry ─── */
+function deleteLedgerEntry(id) {
+  ledger=ledger.filter(e=>e.id!==id);
+  renderAll();
+}
+
+/* ─── Fetch price ─── */
+async function fetchPrice(ticker) {
+  const res=await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(ticker)}&token=${API_KEY}`);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data=await res.json();
+  if(!data.c||data.c===0) throw new Error('No data');
+  return {price:+data.c.toFixed(2), chg:+data.dp.toFixed(2)};
+}
+
+function setSpin(on){document.getElementById('spin').style.display=on?'inline':'none';}
+
+async function refreshAll() {
+  const holdings=computeHoldings();
+  if(holdings.length===0) return;
+  setSpin(true);
+  document.getElementById('ts').textContent='Fetching live prices…';
+  const results=await Promise.allSettled(holdings.map(h=>fetchPrice(h.ticker).then(r=>({ticker:h.ticker,...r}))));
+  let ok=0;
+  results.forEach(r=>{
+    if(r.status==='fulfilled'){priceCache[r.value.ticker]=r.value;ok++;}
+  });
+  setSpin(false);
+  document.getElementById('ts').textContent=`${ok}/${holdings.length} prices updated · ${new Date().toLocaleTimeString()}`;
+  renderAll();
+}
+
+/* ─── Render all ─── */
+function renderAll() {
+  localStorage.setItem('ledger', JSON.stringify(ledger));
+  renderHoldings();
+  renderLedger();
+}
+
+/* ─── Render Holdings ─── */
+function renderHoldings() {
+  const holdings=computeHoldings();
+  const tbody=document.getElementById('holdings-body');
+  tbody.innerHTML='';
+  let totalMktVal=0, totalCostBasis=0;
+
+  if(holdings.length===0) {
+    tbody.innerHTML=`<tr><td colspan="8" class="empty">No holdings yet — buy stocks in the Account tab.</td></tr>`;
+  } else {
+    holdings.forEach(h=>{
+      const hasPrice=h.price!==null;
+      const val=hasPrice?h.shares*h.price:null;
+      const cost=h.shares*h.avgCost;
+      const gain=hasPrice?val-cost:null;
+      const retPct=hasPrice?(gain/cost)*100:null;
+      if(val!==null)totalMktVal+=val;
+      totalCostBasis+=cost;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td style="font-weight:500">${h.ticker}</td>
+        <td class="r">${h.shares%1===0?h.shares:h.shares.toFixed(4)}</td>
+        <td class="r">$${fmt(h.avgCost)}</td>
+        <td class="r">${hasPrice?'$'+fmt(h.price):'<span class="dot"></span>'}</td>
+        <td class="r">${h.chg!==null?`<span class="badge ${h.chg>=0?'pos':'neg'}">${fmtPct(h.chg)}</span>`:'—'}</td>
+        <td class="r">${val!==null?'$'+fmt(val):'—'}</td>
+        <td class="r">${gain!==null?`<span class="${gain>=0?'pos':'neg'}">${gain>=0?'+':'-'}$${fmt(Math.abs(gain))}</span>`:'—'}</td>
+        <td class="r">${retPct!==null?`<span class="badge ${retPct>=0?'pos':'neg'}">${fmtPct(retPct)}</span>`:'—'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  const cash=cashBalance();
+  const totalGain=totalMktVal-totalCostBasis;
+  const totalPct=totalCostBasis?(totalGain/totalCostBasis*100):0;
+  document.getElementById('summary').innerHTML=`
+    <div class="metric"><div class="metric-label">Portfolio value</div><div class="metric-value">$${fmt(totalMktVal)}</div></div>
+    <div class="metric"><div class="metric-label">Cost basis</div><div class="metric-value">$${fmt(totalCostBasis)}</div></div>
+    <div class="metric"><div class="metric-label">Unrealised gain/loss</div><div class="metric-value ${totalGain>=0?'pos':'neg'}">${totalGain>=0?'+':'-'}$${fmt(Math.abs(totalGain))}</div></div>
+    <div class="metric"><div class="metric-label">Overall return</div><div class="metric-value ${totalPct>=0?'pos':'neg'}">${fmtPct(totalPct)}</div></div>
+    <div class="metric"><div class="metric-label">Cash balance</div><div class="metric-value">$${fmt(cash)}</div></div>
+    <div class="metric"><div class="metric-label">Holdings</div><div class="metric-value">${holdings.length}</div></div>
+  `;
+}
+
+/* ─── Render Ledger ─── */
+function renderLedger() {
+  const sorted=[...ledger].sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  const tbody=document.getElementById('ledger-body');
+  tbody.innerHTML='';
+
+  if(sorted.length===0) {
+    tbody.innerHTML=`<tr><td colspan="9" class="empty">No transactions yet — start by making a deposit.</td></tr>`;
+  } else {
+    let running=0;
+    sorted.forEach(e=>{
+      const isCredit=e.type==='deposit'||e.type==='sell';
+      running+=isCredit?e.amount:-e.amount;
+      const labels={deposit:'Deposit',withdrawal:'Withdraw',buy:'Buy',sell:'Sell'};
+      const cls={deposit:'dep',withdrawal:'wit',buy:'buy',sell:'sell'};
+      const amtHtml=isCredit
+        ?`<span class="pos">+$${fmt(e.amount)}</span>`
+        :`<span class="neg">-$${fmt(e.amount)}</span>`;
+      const note=e.note||(e.ticker?`${labels[e.type]} ${e.ticker}`:labels[e.type]);
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td style="color:#888">${fmtDate(e.date)}</td>
+        <td><span class="badge ${cls[e.type]}">${labels[e.type]}</span></td>
+        <td style="font-weight:500">${e.ticker||'—'}</td>
+        <td class="r">${e.shares!=null?(e.shares%1===0?e.shares:e.shares.toFixed(4)):'—'}</td>
+        <td class="r">${e.pricePerShare!=null?'$'+fmt(e.pricePerShare):'—'}</td>
+        <td class="r">${amtHtml}</td>
+        <td style="color:#888;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis">${note}</td>
+        <td class="r" style="font-weight:500">$${fmt(running)}</td>
+        <td><button class="del-btn" onclick="deleteLedgerEntry(${e.id})" title="Delete">×</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  const bal=cashBalance();
+  document.getElementById('bal-display').textContent='$'+fmt(bal);
+  document.getElementById('bal-display').className='bal-main'+(bal<0?' neg':'');
+  const deps=ledger.filter(e=>e.type==='deposit').reduce((a,e)=>a+e.amount,0);
+  const wits=ledger.filter(e=>e.type==='withdrawal').reduce((a,e)=>a+e.amount,0);
+  document.getElementById('bal-sub').textContent=deps>0
+    ?`$${fmt(deps)} deposited · $${fmt(wits)} withdrawn`
+    :'No transactions yet';
+}
+
+/* ══════════════════════════════════════
+   SNAPSHOT LOGIC
+══════════════════════════════════════ */
+
+function currentYM() {
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+/* Last day of a given YYYY-MM */
+function lastDayOfMonth(ym) {
+  const [y,m]=ym.split('-').map(Number);
+  return new Date(y,m,0).toISOString().slice(0,10);
+}
+
+/* All months from first ledger entry to current */
+function allMonths() {
+  if(!ledger.length) return [];
+  const dates=ledger.map(e=>e.date).sort();
+  const start=dates[0].slice(0,7);
+  const end=currentYM();
+  const months=[];
+  let [y,m]=[parseInt(start.slice(0,4)),parseInt(start.slice(5,7))];
+  const [ey,em]=[parseInt(end.slice(0,4)),parseInt(end.slice(5,7))];
+  while(y<ey||(y===ey&&m<=em)){
+    months.push(`${y}-${String(m).padStart(2,'0')}`);
+    m++; if(m>12){m=1;y++;}
+  }
+  return months;
+}
+
+/* Take (or retake) a snapshot for a given YYYY-MM */
+async function takeSnapshot(ym, silent=false) {
+  const endDate=lastDayOfMonth(ym);
+  const holdingsAsOf=computeHoldingsAsOf(endDate);
+  const cash=cashBalanceAsOf(endDate);
+
+  // fetch prices for each holding
+  const priceResults=await Promise.allSettled(
+    holdingsAsOf.map(h=>fetchPrice(h.ticker).then(r=>({ticker:h.ticker,...r})))
+  );
+
+  const holdingData=holdingsAsOf.map(h=>{
+    const priceRes=priceResults.find(r=>r.status==='fulfilled'&&r.value.ticker===h.ticker);
+    const price=priceRes?priceRes.value.price:null;
+    const mktValue=price!==null?h.shares*price:null;
+    const cost=h.shares*h.avgCost;
+    const gain=mktValue!==null?mktValue-cost:null;
+    return {ticker:h.ticker,shares:h.shares,avgCost:h.avgCost,pricePerShare:price,mktValue,cost,gain};
+  });
+
+  const totalMktValue=holdingData.reduce((s,h)=>s+(h.mktValue||0),0);
+  const totalCost=holdingData.reduce((s,h)=>s+h.cost,0);
+  const totalGain=holdingData.reduce((s,h)=>s+(h.gain||0),0);
+
+  snapshots[ym]={
+    ym,
+    takenAt: new Date().toISOString(),
+    cash,
+    holdings: holdingData,
+    totalMktValue,
+    totalCost,
+    totalGain,
+    totalWithCash: totalMktValue+cash,
+  };
+  localStorage.setItem('snapshots', JSON.stringify(snapshots));
+  if(!silent) renderSnapshots();
+}
+
+/* Delete a snapshot */
+function deleteSnapshot(ym) {
+  delete snapshots[ym];
+  localStorage.setItem('snapshots', JSON.stringify(snapshots));
+  renderSnapshots();
+}
+
+/* Render the snapshots tab */
+function renderSnapshots() {
+  const months=allMonths();
+  const container=document.getElementById('snap-content');
+
+  if(!months.length) {
+    container.innerHTML=`<div class="snap-empty">No transactions yet. Add some activity in the Account tab first.</div>`;
+    return;
+  }
+
+  // Default to most recent month
+  if(!snapViewMonth || !months.includes(snapViewMonth)) {
+    snapViewMonth=months[months.length-1];
+  }
+
+  const idx=months.indexOf(snapViewMonth);
+  const snap=snapshots[snapViewMonth]||null;
+  const sortedSnaps=months.filter(m=>snapshots[m]).map(m=>snapshots[m]);
+
+  // --- Trend chart data (last 12 months with snapshots) ---
+  const trendMonths=sortedSnaps.slice(-12);
+
+  // --- Build HTML ---
+  let html='';
+
+  // Month navigator + capture button
+  html+=`<div class="snap-toolbar">
+    <div class="month-nav">
+      <button onclick="snapNav(-1)" ${idx===0?'disabled':''}>‹</button>
+      <span>${monthLabel(snapViewMonth)}</span>
+      <button onclick="snapNav(1)" ${idx===months.length-1?'disabled':''}>›</button>
+    </div>
+    <select onchange="snapViewMonth=this.value;renderSnapshots()" style="min-width:160px">
+      ${[...months].reverse().map(m=>`<option value="${m}" ${m===snapViewMonth?'selected':''}>${monthLabel(m)}</option>`).join('')}
+    </select>
+    <button onclick="doTakeSnapshot('${snapViewMonth}')" id="snap-btn-${snapViewMonth}">
+      ${snap ? '↻ Retake snapshot' : '+ Take snapshot'}
+    </button>
+    ${snap?`<button onclick="deleteSnapshot('${snapViewMonth}')" style="color:#E24B4A;border-color:#f5c0c0">Delete</button>`:''}
+  </div>`;
+
+  if(!snap) {
+    html+=`<div class="snap-empty" style="padding:2rem">
+      No snapshot for ${monthLabel(snapViewMonth)} yet.<br>
+      <span style="font-size:12px;color:#bbb">Click "Take snapshot" to capture holdings and prices at end of month.</span>
+    </div>`;
+  } else {
+    const takenAt=new Date(snap.takenAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const totalRet=snap.totalCost?(snap.totalGain/snap.totalCost*100):0;
+
+    // Summary cards
+    html+=`<div class="snap-section-title">Portfolio summary · captured ${takenAt}</div>
+    <div class="snap-card-grid">
+      <div class="snap-card">
+        <div class="snap-card-label">Total value (incl. cash)</div>
+        <div class="snap-card-value">$${fmt(snap.totalWithCash)}</div>
+      </div>
+      <div class="snap-card">
+        <div class="snap-card-label">Equity value</div>
+        <div class="snap-card-value">$${fmt(snap.totalMktValue)}</div>
+      </div>
+      <div class="snap-card">
+        <div class="snap-card-label">Cash</div>
+        <div class="snap-card-value">$${fmt(snap.cash)}</div>
+      </div>
+      <div class="snap-card">
+        <div class="snap-card-label">Cost basis</div>
+        <div class="snap-card-value">$${fmt(snap.totalCost)}</div>
+      </div>
+      <div class="snap-card">
+        <div class="snap-card-label">Unrealised gain/loss</div>
+        <div class="snap-card-value ${snap.totalGain>=0?'pos':'neg'}">${snap.totalGain>=0?'+':'-'}$${fmt(Math.abs(snap.totalGain))}</div>
+      </div>
+      <div class="snap-card">
+        <div class="snap-card-label">Overall return</div>
+        <div class="snap-card-value ${totalRet>=0?'pos':'neg'}">${fmtPct(totalRet)}</div>
+      </div>
+    </div>`;
+
+    // Holdings table
+    html+=`<div class="snap-section-title">Holdings</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Ticker</th>
+          <th class="r">Shares</th>
+          <th class="r">Avg cost</th>
+          <th class="r">Price at snapshot</th>
+          <th class="r">Mkt value</th>
+          <th class="r">Gain/loss</th>
+          <th class="r">Return</th>
+        </tr></thead>
+        <tbody>`;
+
+    if(!snap.holdings.length) {
+      html+=`<tr><td colspan="7" class="empty">No holdings at end of ${monthLabel(snapViewMonth)}.</td></tr>`;
+    } else {
+      snap.holdings.forEach((h,i)=>{
+        const ret=h.cost?(h.gain/h.cost*100):0;
+        html+=`<tr class="snap-ticker-row" onclick="toggleSnapExpand(${i})">
+          <td>${h.ticker}</td>
+          <td class="r">${h.shares%1===0?h.shares:h.shares.toFixed(4)}</td>
+          <td class="r">$${fmt(h.avgCost)}</td>
+          <td class="r">${h.pricePerShare!==null?'$'+fmt(h.pricePerShare):'—'}</td>
+          <td class="r">${h.mktValue!==null?'$'+fmt(h.mktValue):'—'}</td>
+          <td class="r">${h.gain!==null?`<span class="${h.gain>=0?'pos':'neg'}">${h.gain>=0?'+':'-'}$${fmt(Math.abs(h.gain))}</span>`:'—'}</td>
+          <td class="r">${h.mktValue!==null?`<span class="badge ${ret>=0?'pos':'neg'}">${fmtPct(ret)}</span>`:'—'}</td>
+        </tr>
+        <tr class="snap-expand" id="snap-expand-${i}">
+          <td colspan="7">
+            Cost basis: $${fmt(h.cost)} · 
+            Weight: ${snap.totalMktValue?((h.mktValue||0)/snap.totalMktValue*100).toFixed(1):'—'}% of equity · 
+            ${h.pricePerShare!==null?`Captured price: $${fmt(h.pricePerShare)}`:'Price unavailable at capture'}
+          </td>
+        </tr>`;
+      });
+    }
+    html+=`</tbody></table></div>`;
+  }
+
+  // Portfolio value trend (all months with snapshots)
+  if(trendMonths.length > 1) {
+    const maxVal=Math.max(...trendMonths.map(s=>s.totalWithCash),1);
+    const bars=trendMonths.map(s=>{
+      const h=Math.max(4,Math.round((s.totalWithCash/maxVal)*40));
+      const col=s.totalGain>=0?'#1D9E75':'#E24B4A';
+      const tip=`${monthLabel(s.ym)}: $${fmt(s.totalWithCash)}`;
+      const lbl=s.ym.slice(5); // "MM"
+      return {h,col,tip,lbl};
+    });
+
+    html+=`<div class="snap-section-title">Portfolio value trend</div>
+    <div style="background:#fff;border:1px solid #e5e5e3;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.5rem;display:inline-block;min-width:220px">
+      <div class="trend-bar-wrap">
+        ${bars.map(b=>`<div class="trend-bar" style="height:${b.h}px;background:${b.col}" data-tip="${b.tip}"></div>`).join('')}
+      </div>
+      <div class="trend-label">
+        ${bars.map(b=>`<span>${b.lbl}</span>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  html+=`<div class="snap-info">Snapshots capture holdings and live prices at the time of capture, not necessarily end-of-month closing prices. Retake any month to refresh.</div>`;
+
+  container.innerHTML=html;
+}
+
+function snapNav(dir) {
+  const months=allMonths();
+  const idx=months.indexOf(snapViewMonth);
+  const next=idx+dir;
+  if(next>=0&&next<months.length){snapViewMonth=months[next];renderSnapshots();}
+}
+
+function toggleSnapExpand(i) {
+  const el=document.getElementById('snap-expand-'+i);
+  if(el) el.classList.toggle('open');
+}
+
+async function doTakeSnapshot(ym) {
+  const btn=document.getElementById('snap-btn-'+ym);
+  if(btn){btn.textContent='Fetching…';btn.disabled=true;}
+  await takeSnapshot(ym);
+}
+
+/* init */
+renderAll();
+</script>
+</body>
+</html>
