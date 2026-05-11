@@ -84,257 +84,343 @@
   .trend-label span{width:28px;font-size:9px;color:#aaa;text-align:center;overflow:hidden}
   .snap-info{font-size:12px;color:#888;background:#fff;border:1px solid #e5e5e3;border-radius:8px;padding:.75rem 1rem;margin-top:1rem}
   .snap-empty{text-align:center;padding:3rem 1rem;color:#aaa;font-size:13px}
+
+  /* ── Auth ── */
+  #auth-container{display:flex;justify-content:flex-end;align-items:center;margin-bottom:1rem}
+  #auth-signed-in{display:flex;align-items:center;gap:10px;font-size:13px;color:#555}
+  #signin-btn{background:#fff;border:1px solid #d0d0cc;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+  #signout-btn{background:none;border:1px solid #d0d0cc;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit;color:#888}
+
+  /* ── Loading overlay ── */
+  #loading-overlay{position:fixed;inset:0;background:#f5f5f3;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:12px}
+  #loading-overlay p{font-size:13px;color:#888}
+  .spinner{width:28px;height:28px;border:3px solid #e5e5e3;border-top-color:#1a1a1a;border-radius:50%;animation:spin 0.8s linear infinite}
 </style>
 </head>
 <body>
 
-<h1>My portfolio</h1>
-
- <div id="auth-container" style="text-align:right; padding: 8px 16px;">
-  <!-- Shown when signed out -->
-  <div id="auth-signed-out">
-    <button id="btn-signin" onclick="handleSignIn()">
-      Sign in with Google
-    </button>
-  </div>
-
-  <!-- Shown when signed in -->
-  <div id="auth-signed-in" style="display:none;">
-    <span id="auth-user-name" style="margin-right:12px; font-size:0.9em;"></span>
-    <button id="btn-signout" onclick="handleSignOut()">Sign out</button>
-  </div>
-</div>
- 
-<div class="ts" id="ts"></div>
-
-<div class="tabs">
-  <button class="tab active" onclick="switchTab('holdings')">Holdings</button>
-  <button class="tab" onclick="switchTab('snapshots')">Snapshots</button>
-  <button class="tab" onclick="switchTab('account')">Account</button>
+<!-- Loading overlay — shown until auth state is known -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>Loading…</p>
 </div>
 
-<!-- ══════════ HOLDINGS TAB ══════════ -->
-<div class="tab-panel active" id="tab-holdings">
-  <div class="summary-grid" id="summary"></div>
-  <div class="actions">
-    <button onclick="switchTab('account');toggleForm('buy-form')">+ Buy stock</button>
-    <button onclick="switchTab('account');toggleForm('sell-form')">− Sell stock</button>
-    <button onclick="refreshAll()"><span id="spin" style="display:none" class="spin">↻</span> Refresh prices</button>
-  </div>
-  <div class="table-wrap" id="holdings-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th style="width:80px">Ticker</th>
-          <th class="r" style="width:70px">Shares</th>
-          <th class="r" style="width:88px">Avg cost</th>
-          <th class="r" style="width:94px">Live price</th>
-          <th class="r" style="width:74px">Day chg</th>
-          <th class="r" style="width:100px">Mkt value</th>
-          <th class="r" style="width:90px">Gain/loss</th>
-          <th class="r" style="width:74px">Return</th>
-        </tr>
-      </thead>
-      <tbody id="holdings-body"></tbody>
-    </table>
-  </div>
-  <div class="note">Holdings are derived from your buy/sell transactions in the Account tab. Prices from Finnhub.</div>
+<!-- Sign-in screen — shown when signed out -->
+<div id="signin-screen" style="display:none;text-align:center;padding:4rem 1rem">
+  <h1 style="margin-bottom:8px">My portfolio</h1>
+  <p style="font-size:13px;color:#888;margin-bottom:1.5rem">Sign in to access your portfolio across all devices.</p>
+  <button id="signin-btn" onclick="handleSignIn()" style="padding:10px 24px;font-size:14px">Sign in with Google</button>
 </div>
 
-<!-- ══════════ SNAPSHOTS TAB ══════════ -->
-<div class="tab-panel" id="tab-snapshots">
-  <div id="snap-content"></div>
-</div>
+<!-- Main app — shown when signed in -->
+<div id="app" style="display:none">
 
-<!-- ══════════ ACCOUNT TAB ══════════ -->
-<div class="tab-panel" id="tab-account">
-
-  <div class="bal-banner">
-    <div>
-      <div class="bal-label">Cash balance</div>
-      <div class="bal-main" id="bal-display">$0.00</div>
-      <div class="bal-sub" id="bal-sub">No transactions yet</div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="toggleForm('deposit-form')">+ Deposit</button>
-      <button onclick="toggleForm('withdraw-form')">− Withdraw</button>
-      <button onclick="toggleForm('buy-form')">Buy stock</button>
-      <button onclick="toggleForm('sell-form')">Sell stock</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px">
+    <h1>My portfolio</h1>
+    <div id="auth-container">
+      <div id="auth-signed-in">
+        <span id="auth-user-name"></span>
+        <button id="signout-btn" onclick="handleSignOut()">Sign out</button>
+      </div>
     </div>
   </div>
 
-  <!-- Deposit -->
-  <div class="add-form" id="deposit-form">
-    <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Deposit cash</div>
-    <div class="form-row">
-      <div><label>Amount ($)</label><input id="dep-amount" type="number" placeholder="10000.00" min="0.01" step="any"></div>
-      <div><label>Date</label><input id="dep-date" type="date"></div>
-      <div><label>Note (optional)</label><input id="dep-note" type="text" placeholder="Initial deposit"></div>
+  <div class="ts" id="ts"></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('holdings')">Holdings</button>
+    <button class="tab" onclick="switchTab('snapshots')">Snapshots</button>
+    <button class="tab" onclick="switchTab('account')">Account</button>
+  </div>
+
+  <!-- ══════════ HOLDINGS TAB ══════════ -->
+  <div class="tab-panel active" id="tab-holdings">
+    <div class="summary-grid" id="summary"></div>
+    <div class="actions">
+      <button onclick="switchTab('account');toggleForm('buy-form')">+ Buy stock</button>
+      <button onclick="switchTab('account');toggleForm('sell-form')">− Sell stock</button>
+      <button onclick="refreshAll()"><span id="spin" style="display:none" class="spin">↻</span> Refresh prices</button>
     </div>
-    <div style="display:flex;gap:8px"><button onclick="addDeposit()">Add deposit</button><button onclick="closeForm('deposit-form')">Cancel</button></div>
-    <div id="dep-err" class="err"></div>
-  </div>
-
-  <!-- Withdraw -->
-  <div class="add-form" id="withdraw-form">
-    <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Withdraw cash</div>
-    <div class="form-row">
-      <div><label>Amount ($)</label><input id="wit-amount" type="number" placeholder="1000.00" min="0.01" step="any"></div>
-      <div><label>Date</label><input id="wit-date" type="date"></div>
-      <div><label>Note (optional)</label><input id="wit-note" type="text" placeholder="Withdrawal"></div>
+    <div class="table-wrap" id="holdings-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:80px">Ticker</th>
+            <th class="r" style="width:70px">Shares</th>
+            <th class="r" style="width:88px">Avg cost</th>
+            <th class="r" style="width:94px">Live price</th>
+            <th class="r" style="width:74px">Day chg</th>
+            <th class="r" style="width:100px">Mkt value</th>
+            <th class="r" style="width:90px">Gain/loss</th>
+            <th class="r" style="width:74px">Return</th>
+          </tr>
+        </thead>
+        <tbody id="holdings-body"></tbody>
+      </table>
     </div>
-    <div style="display:flex;gap:8px"><button onclick="addWithdrawal()">Add withdrawal</button><button onclick="closeForm('withdraw-form')">Cancel</button></div>
-    <div id="wit-err" class="err"></div>
+    <div class="note">Holdings are derived from your buy/sell transactions in the Account tab. Prices from Finnhub.</div>
   </div>
 
-  <!-- Buy -->
-  <div class="add-form" id="buy-form">
-    <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Buy stock</div>
-    <div class="form-row">
-      <div><label>Ticker</label><input id="b-ticker" type="text" placeholder="AAPL" style="text-transform:uppercase"></div>
-      <div><label>Shares</label><input id="b-shares" type="number" placeholder="10" min="0.0001" step="any"></div>
-      <div><label>Price per share ($)</label><input id="b-price" type="number" placeholder="150.00" min="0" step="any"></div>
-      <div><label>Date</label><input id="b-date" type="date"></div>
+  <!-- ══════════ SNAPSHOTS TAB ══════════ -->
+  <div class="tab-panel" id="tab-snapshots">
+    <div id="snap-content"></div>
+  </div>
+
+  <!-- ══════════ ACCOUNT TAB ══════════ -->
+  <div class="tab-panel" id="tab-account">
+
+    <div class="bal-banner">
+      <div>
+        <div class="bal-label">Cash balance</div>
+        <div class="bal-main" id="bal-display">$0.00</div>
+        <div class="bal-sub" id="bal-sub">No transactions yet</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="toggleForm('deposit-form')">+ Deposit</button>
+        <button onclick="toggleForm('withdraw-form')">− Withdraw</button>
+        <button onclick="toggleForm('buy-form')">Buy stock</button>
+        <button onclick="toggleForm('sell-form')">Sell stock</button>
+      </div>
     </div>
-    <div style="display:flex;gap:8px"><button onclick="doBuy()">Confirm buy</button><button onclick="closeForm('buy-form')">Cancel</button></div>
-    <div id="buy-err" class="err"></div>
-  </div>
 
-  <!-- Sell -->
-  <div class="add-form" id="sell-form">
-    <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Sell stock</div>
-    <div class="form-row">
-      <div><label>Ticker</label><select id="s-ticker"></select></div>
-      <div><label>Shares to sell</label><input id="s-shares" type="number" placeholder="5" min="0.0001" step="any"></div>
-      <div><label>Sale price ($)</label><input id="s-price" type="number" placeholder="175.00" min="0" step="any"></div>
-      <div><label>Date</label><input id="s-date" type="date"></div>
+    <!-- Deposit -->
+    <div class="add-form" id="deposit-form">
+      <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Deposit cash</div>
+      <div class="form-row">
+        <div><label>Amount ($)</label><input id="dep-amount" type="number" placeholder="10000.00" min="0.01" step="any"></div>
+        <div><label>Date</label><input id="dep-date" type="date"></div>
+        <div><label>Note (optional)</label><input id="dep-note" type="text" placeholder="Initial deposit"></div>
+      </div>
+      <div style="display:flex;gap:8px"><button onclick="addDeposit()">Add deposit</button><button onclick="closeForm('deposit-form')">Cancel</button></div>
+      <div id="dep-err" class="err"></div>
     </div>
-    <div style="display:flex;gap:8px"><button onclick="doSell()">Confirm sell</button><button onclick="closeForm('sell-form')">Cancel</button></div>
-    <div id="sell-err" class="err"></div>
+
+    <!-- Withdraw -->
+    <div class="add-form" id="withdraw-form">
+      <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Withdraw cash</div>
+      <div class="form-row">
+        <div><label>Amount ($)</label><input id="wit-amount" type="number" placeholder="1000.00" min="0.01" step="any"></div>
+        <div><label>Date</label><input id="wit-date" type="date"></div>
+        <div><label>Note (optional)</label><input id="wit-note" type="text" placeholder="Withdrawal"></div>
+      </div>
+      <div style="display:flex;gap:8px"><button onclick="addWithdrawal()">Add withdrawal</button><button onclick="closeForm('withdraw-form')">Cancel</button></div>
+      <div id="wit-err" class="err"></div>
+    </div>
+
+    <!-- Buy -->
+    <div class="add-form" id="buy-form">
+      <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Buy stock</div>
+      <div class="form-row">
+        <div><label>Ticker</label><input id="b-ticker" type="text" placeholder="AAPL" style="text-transform:uppercase"></div>
+        <div><label>Shares</label><input id="b-shares" type="number" placeholder="10" min="0.0001" step="any"></div>
+        <div><label>Price per share ($)</label><input id="b-price" type="number" placeholder="150.00" min="0" step="any"></div>
+        <div><label>Date</label><input id="b-date" type="date"></div>
+      </div>
+      <div style="display:flex;gap:8px"><button onclick="doBuy()">Confirm buy</button><button onclick="closeForm('buy-form')">Cancel</button></div>
+      <div id="buy-err" class="err"></div>
+    </div>
+
+    <!-- Sell -->
+    <div class="add-form" id="sell-form">
+      <div style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px">Sell stock</div>
+      <div class="form-row">
+        <div><label>Ticker</label><select id="s-ticker"></select></div>
+        <div><label>Shares to sell</label><input id="s-shares" type="number" placeholder="5" min="0.0001" step="any"></div>
+        <div><label>Sale price ($)</label><input id="s-price" type="number" placeholder="175.00" min="0" step="any"></div>
+        <div><label>Date</label><input id="s-date" type="date"></div>
+      </div>
+      <div style="display:flex;gap:8px"><button onclick="doSell()">Confirm sell</button><button onclick="closeForm('sell-form')">Cancel</button></div>
+      <div id="sell-err" class="err"></div>
+    </div>
+
+    <!-- Ledger table -->
+    <div class="table-wrap">
+      <table style="min-width:580px">
+        <thead>
+          <tr>
+            <th style="width:90px">Date</th>
+            <th style="width:80px">Type</th>
+            <th style="width:70px">Ticker</th>
+            <th class="r" style="width:70px">Shares</th>
+            <th class="r" style="width:100px">Price/share</th>
+            <th class="r" style="width:110px">Amount</th>
+            <th style="width:160px">Note</th>
+            <th class="r" style="width:120px">Balance after</th>
+            <th style="width:36px"></th>
+          </tr>
+        </thead>
+        <tbody id="ledger-body"></tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- Ledger table -->
-  <div class="table-wrap">
-    <table style="min-width:580px">
-      <thead>
-        <tr>
-          <th style="width:90px">Date</th>
-          <th style="width:80px">Type</th>
-          <th style="width:70px">Ticker</th>
-          <th class="r" style="width:70px">Shares</th>
-          <th class="r" style="width:100px">Price/share</th>
-          <th class="r" style="width:110px">Amount</th>
-          <th style="width:160px">Note</th>
-          <th class="r" style="width:120px">Balance after</th>
-          <th style="width:36px"></th>
-        </tr>
-      </thead>
-      <tbody id="ledger-body"></tbody>
-    </table>
-  </div>
-</div>
+</div><!-- end #app -->
 
+<!-- ══════════════════════════════════════
+     FIREBASE MODULE SCRIPT
+══════════════════════════════════════ -->
 <script type="module">
-  import {
-    signInWithGoogle,
-    signOutUser,
-    listenAuth,
-    loadTransactions,
-    loadCashBalance,
-    loadSnapshots,
-    subscribeTransactions,
-    migrateLocalStorageToFirestore,
-  } from "./firebase-integration.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth, signInWithPopup, signOut, onAuthStateChanged, GoogleAuthProvider
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, addDoc, getDocs, deleteDoc,
+  query, orderBy, setDoc, getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  // Expose sign-in/out to the onclick handlers above
-  window.handleSignIn = signInWithGoogle;
-  window.handleSignOut = signOutUser;
-
-  // Watch auth state — this fires immediately on page load
-  listenAuth(
-    async (user) => {
-      // --- USER SIGNED IN ---
-      document.getElementById("auth-signed-out").style.display = "none";
-      document.getElementById("auth-signed-in").style.display = "block";
-      document.getElementById("auth-user-name").textContent =
-        user.displayName || user.email;
-
-      // One-time migration from localStorage (safe to call every time —
-      // it only runs if localStorage data exists, then deletes it)
-      await migrateLocalStorageToFirestore();
-
-      // Load all data from Firestore and hand it to your app
-      const [transactions, cashBalance, snapshots] = await Promise.all([
-        loadTransactions(),
-        loadCashBalance(),
-        loadSnapshots(),
-      ]);
-
-      // ---------------------------------------------------------------
-      // Call your existing app initialisation function here.
-      // Replace `window.initApp(...)` with whatever your app uses
-      // to render holdings, the account table, and snapshots.
-      // ---------------------------------------------------------------
-      if (typeof window.initApp === "function") {
-       // window.initApp({ transactions, cashBalance, snapshots });
-       window.initApp = function({ transactions, cashBalance, snapshots }) {
-  // Replace your localStorage load logic with this
-  appState.transactions = transactions;
-  appState.cashBalance = cashBalance;
-  appState.snapshots = snapshots;
-  renderAll(); // your existing render function
+// ─── YOUR FIREBASE CONFIG — fill these in ───────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId:             "YOUR_APP_ID",
 };
-      }
+// ────────────────────────────────────────────────────────────────────────────
 
-      // Subscribe to real-time updates (optional but recommended)
-      window._txnUnsubscribe = subscribeTransactions((txns) => {
-        if (typeof window.onTransactionsUpdated === "function") {
-        //  window.onTransactionsUpdated(txns);
-         window.onTransactionsUpdated = function(transactions) {
-  appState.transactions = transactions;
-  renderHoldings();
-  renderAccountTable();
-};
-        }
-      });
-    },
-    () => {
-      // --- USER SIGNED OUT ---
-      document.getElementById("auth-signed-out").style.display = "block";
-      document.getElementById("auth-signed-in").style.display = "none";
-      document.getElementById("auth-user-name").textContent = "";
+const app      = initializeApp(firebaseConfig);
+const auth     = getAuth(app);
+const db       = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
-      // Stop real-time listener
-      if (window._txnUnsubscribe) window._txnUnsubscribe();
+// Expose auth actions to onclick handlers
+window.handleSignIn  = () => signInWithPopup(auth, provider).catch(console.error);
+window.handleSignOut = () => signOut(auth);
 
-      // Clear the UI — replace with your own reset logic
-      if (typeof window.resetApp === "function") {
-       // window.resetApp();
-       window.resetApp = function() {
-  appState.transactions = [];
-  appState.cashBalance = 0;
-  appState.snapshots = [];
-  renderAll();
-};
-      }
+// ─── Firestore helpers ───────────────────────────────────────────────────────
+
+function uid() { return auth.currentUser.uid; }
+
+async function dbLoadLedger() {
+  const q = query(collection(db, 'users', uid(), 'ledger'), orderBy('date', 'asc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+}
+
+async function dbAddEntry(entry) {
+  const ref = await addDoc(collection(db, 'users', uid(), 'ledger'), entry);
+  return ref.id; // firestoreId
+}
+
+async function dbDeleteEntry(firestoreId) {
+  await deleteDoc(doc(db, 'users', uid(), 'ledger', firestoreId));
+}
+
+async function dbLoadSnapshots() {
+  const snap = await getDocs(collection(db, 'users', uid(), 'snapshots'));
+  const result = {};
+  snap.docs.forEach(d => { result[d.id] = d.data(); });
+  return result;
+}
+
+async function dbSaveSnapshot(ym, data) {
+  await setDoc(doc(db, 'users', uid(), 'snapshots', ym), data);
+}
+
+async function dbDeleteSnapshot(ym) {
+  await deleteDoc(doc(db, 'users', uid(), 'snapshots', ym));
+}
+
+// ─── Migration: one-time move from localStorage to Firestore ─────────────────
+
+async function migrateIfNeeded() {
+  const oldLedger    = localStorage.getItem('ledger');
+  const oldSnapshots = localStorage.getItem('snapshots');
+  if (!oldLedger && !oldSnapshots) return;
+
+  console.log('Migrating localStorage data to Firestore…');
+  if (oldLedger) {
+    const entries = JSON.parse(oldLedger);
+    for (const e of entries) {
+      const { id, ...rest } = e; // drop old numeric id
+      await dbAddEntry(rest);
     }
-  );
+    localStorage.removeItem('ledger');
+  }
+  if (oldSnapshots) {
+    const snaps = JSON.parse(oldSnapshots);
+    for (const [ym, data] of Object.entries(snaps)) {
+      await dbSaveSnapshot(ym, data);
+    }
+    localStorage.removeItem('snapshots');
+  }
+  console.log('Migration complete.');
+}
+
+// ─── Auth state ──────────────────────────────────────────────────────────────
+
+onAuthStateChanged(auth, async (user) => {
+  const overlay      = document.getElementById('loading-overlay');
+  const signinScreen = document.getElementById('signin-screen');
+  const appEl        = document.getElementById('app');
+
+  if (user) {
+    // Show app
+    overlay.style.display      = 'none';
+    signinScreen.style.display = 'none';
+    appEl.style.display        = 'block';
+    document.getElementById('auth-user-name').textContent = user.displayName || user.email;
+
+    // Migrate then load
+    await migrateIfNeeded();
+    const [entries, snaps] = await Promise.all([dbLoadLedger(), dbLoadSnapshots()]);
+
+    // Hand data to the main app script
+    window._initApp(entries, snaps, dbAddEntry, dbDeleteEntry, dbSaveSnapshot, dbDeleteSnapshot);
+
+  } else {
+    // Show sign-in screen
+    overlay.style.display      = 'none';
+    signinScreen.style.display = 'block';
+    appEl.style.display        = 'none';
+    window._resetApp && window._resetApp();
+  }
+});
 </script>
- 
+
+<!-- ══════════════════════════════════════
+     MAIN APP SCRIPT (non-module, unchanged logic)
+══════════════════════════════════════ -->
 <script>
 const API_KEY = 'd7rrhh1r01qm28g7ebrgd7rrhh1r01qm28g7ebs0';
 
-let ledger = JSON.parse(localStorage.getItem('ledger') || '[]');
-
-// Load saved snapshots from localStorage
-let snapshots = JSON.parse(localStorage.getItem('snapshots') || '{}');
-// { "2025-03": { date, cash, costBasis, holdings: [{ticker,shares,avgCost,pricePerShare,mktValue,gain}], totalMktValue, totalGain } }
-
-let nextId = 1;
+// These are populated by _initApp once Firebase loads
+let ledger    = [];
+let snapshots = {};
+let nextId    = 1;
 let priceCache = {};
+let snapViewMonth = null;
 
-// Snapshot tab state
-let snapViewMonth = null; // "YYYY-MM" currently displayed
+// Firestore write functions — set by _initApp
+let _dbAddEntry, _dbDeleteEntry, _dbSaveSnapshot, _dbDeleteSnapshot;
+
+// Called by the Firebase module once data is loaded
+window._initApp = function(entries, snaps, dbAdd, dbDel, dbSaveSnap, dbDelSnap) {
+  _dbAddEntry      = dbAdd;
+  _dbDeleteEntry   = dbDel;
+  _dbSaveSnapshot  = dbSaveSnap;
+  _dbDeleteSnapshot = dbDelSnap;
+
+  ledger    = entries;
+  snapshots = snaps;
+  snapViewMonth = null;
+
+  // Re-establish nextId above highest existing id
+  nextId = (ledger.reduce((m, e) => Math.max(m, e.id || 0), 0)) + 1;
+
+  renderAll();
+};
+
+window._resetApp = function() {
+  ledger    = [];
+  snapshots = {};
+  priceCache = {};
+  snapViewMonth = null;
+  nextId = 1;
+  renderAll();
+};
 
 function today() { return new Date().toISOString().slice(0,10); }
 function fmt(n)  { return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -342,12 +428,12 @@ function fmtPct(n){ return (n>=0?'+':'')+n.toFixed(2)+'%'; }
 function fmtDate(d){ if(!d)return'—'; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; }
 function monthLabel(ym){ const [y,m]=ym.split('-'); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'}); }
 
-/* ─── Derive holdings from ledger up to a given date ─── */
+/* ─── Derive holdings from ledger ─── */
 function computeHoldingsAsOf(dateStr) {
   const map = {};
   const sorted = [...ledger]
     .filter(e => e.date <= dateStr)
-    .sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+    .sort((a,b)=>a.date.localeCompare(b.date)||(a.id||0)-(b.id||0));
   sorted.forEach(e => {
     if(e.type==='buy') {
       if(!map[e.ticker]) map[e.ticker] = {shares:0, totalCost:0};
@@ -420,20 +506,23 @@ function populateSellTicker() {
 }
 
 /* ─── Deposit ─── */
-function addDeposit() {
+async function addDeposit() {
   const a=parseFloat(document.getElementById('dep-amount').value);
   const d=document.getElementById('dep-date').value||today();
   const n=document.getElementById('dep-note').value.trim()||'Deposit';
   const err=document.getElementById('dep-err');
   if(isNaN(a)||a<=0){err.textContent='Enter a valid amount.';return;}
-  ledger.push({id:nextId++,date:d,type:'deposit',ticker:null,shares:null,pricePerShare:null,amount:+a.toFixed(2),note:n});
+  const entry={id:nextId++,date:d,type:'deposit',ticker:null,shares:null,pricePerShare:null,amount:+a.toFixed(2),note:n};
+  const firestoreId = await _dbAddEntry(entry);
+  entry.firestoreId = firestoreId;
+  ledger.push(entry);
   ['dep-amount','dep-date','dep-note'].forEach(id=>document.getElementById(id).value='');
   closeForm('deposit-form');
   renderAll();
 }
 
 /* ─── Withdraw ─── */
-function addWithdrawal() {
+async function addWithdrawal() {
   const a=parseFloat(document.getElementById('wit-amount').value);
   const d=document.getElementById('wit-date').value||today();
   const n=document.getElementById('wit-note').value.trim()||'Withdrawal';
@@ -441,14 +530,17 @@ function addWithdrawal() {
   if(isNaN(a)||a<=0){err.textContent='Enter a valid amount.';return;}
   const bal=cashBalance();
   if(a>bal+0.001){err.textContent=`Insufficient balance. Available: $${fmt(bal)}`;return;}
-  ledger.push({id:nextId++,date:d,type:'withdrawal',ticker:null,shares:null,pricePerShare:null,amount:+a.toFixed(2),note:n});
+  const entry={id:nextId++,date:d,type:'withdrawal',ticker:null,shares:null,pricePerShare:null,amount:+a.toFixed(2),note:n};
+  const firestoreId = await _dbAddEntry(entry);
+  entry.firestoreId = firestoreId;
+  ledger.push(entry);
   ['wit-amount','wit-date','wit-note'].forEach(id=>document.getElementById(id).value='');
   closeForm('withdraw-form');
   renderAll();
 }
 
 /* ─── Buy ─── */
-function doBuy() {
+async function doBuy() {
   const t=document.getElementById('b-ticker').value.trim().toUpperCase();
   const s=parseFloat(document.getElementById('b-shares').value);
   const p=parseFloat(document.getElementById('b-price').value);
@@ -460,7 +552,10 @@ function doBuy() {
   const cost=+(s*p).toFixed(2);
   const bal=cashBalance();
   if(cost>bal+0.001){err.textContent=`Insufficient cash. Balance: $${fmt(bal)}, needed: $${fmt(cost)}`;return;}
-  ledger.push({id:nextId++,date:d,type:'buy',ticker:t,shares:+s,pricePerShare:+p.toFixed(4),amount:cost,note:''});
+  const entry={id:nextId++,date:d,type:'buy',ticker:t,shares:+s,pricePerShare:+p.toFixed(4),amount:cost,note:''};
+  const firestoreId = await _dbAddEntry(entry);
+  entry.firestoreId = firestoreId;
+  ledger.push(entry);
   if(!priceCache[t]) priceCache[t]={price:p,chg:null};
   ['b-ticker','b-shares','b-price','b-date'].forEach(id=>document.getElementById(id).value='');
   closeForm('buy-form');
@@ -469,7 +564,7 @@ function doBuy() {
 }
 
 /* ─── Sell ─── */
-function doSell() {
+async function doSell() {
   const t=document.getElementById('s-ticker').value;
   const s=parseFloat(document.getElementById('s-shares').value);
   const p=parseFloat(document.getElementById('s-price').value);
@@ -484,15 +579,19 @@ function doSell() {
   if(!h){err.textContent='Holding not found.';return;}
   if(s>h.shares+0.0001){err.textContent=`You only hold ${h.shares} shares of ${t}.`;return;}
   const proceeds=+(s*p).toFixed(2);
-  ledger.push({id:nextId++,date:d,type:'sell',ticker:t,shares:+s,pricePerShare:+p.toFixed(4),amount:proceeds,note:''});
+  const entry={id:nextId++,date:d,type:'sell',ticker:t,shares:+s,pricePerShare:+p.toFixed(4),amount:proceeds,note:''};
+  const firestoreId = await _dbAddEntry(entry);
+  entry.firestoreId = firestoreId;
+  ledger.push(entry);
   ['s-shares','s-price','s-date'].forEach(id=>document.getElementById(id).value='');
   closeForm('sell-form');
   renderAll();
 }
 
 /* ─── Delete ledger entry ─── */
-function deleteLedgerEntry(id) {
-  ledger=ledger.filter(e=>e.id!==id);
+async function deleteLedgerEntry(firestoreId, localId) {
+  await _dbDeleteEntry(firestoreId);
+  ledger = ledger.filter(e => e.firestoreId !== firestoreId);
   renderAll();
 }
 
@@ -524,7 +623,7 @@ async function refreshAll() {
 
 /* ─── Render all ─── */
 function renderAll() {
-  localStorage.setItem('ledger', JSON.stringify(ledger));
+  // No localStorage — Firestore writes happen at point of action
   renderHoldings();
   renderLedger();
 }
@@ -532,7 +631,14 @@ function renderAll() {
 /* ─── Render Holdings ─── */
 function renderHoldings() {
   const holdings=computeHoldings();
+  holdings.forEach(h=>{
+    const cached=priceCache[h.ticker];
+    if(cached){h.price=cached.price;h.chg=cached.chg;}
+    else{h.price=null;h.chg=null;}
+  });
+
   const tbody=document.getElementById('holdings-body');
+  if(!tbody) return;
   tbody.innerHTML='';
   let totalMktVal=0, totalCostBasis=0;
 
@@ -565,7 +671,8 @@ function renderHoldings() {
   const cash=cashBalance();
   const totalGain=totalMktVal-totalCostBasis;
   const totalPct=totalCostBasis?(totalGain/totalCostBasis*100):0;
-  document.getElementById('summary').innerHTML=`
+  const summaryEl=document.getElementById('summary');
+  if(summaryEl) summaryEl.innerHTML=`
     <div class="metric"><div class="metric-label">Portfolio value</div><div class="metric-value">$${fmt(totalMktVal)}</div></div>
     <div class="metric"><div class="metric-label">Cost basis</div><div class="metric-value">$${fmt(totalCostBasis)}</div></div>
     <div class="metric"><div class="metric-label">Unrealised gain/loss</div><div class="metric-value ${totalGain>=0?'pos':'neg'}">${totalGain>=0?'+':'-'}$${fmt(Math.abs(totalGain))}</div></div>
@@ -577,8 +684,9 @@ function renderHoldings() {
 
 /* ─── Render Ledger ─── */
 function renderLedger() {
-  const sorted=[...ledger].sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  const sorted=[...ledger].sort((a,b)=>a.date.localeCompare(b.date)||(a.id||0)-(b.id||0));
   const tbody=document.getElementById('ledger-body');
+  if(!tbody) return;
   tbody.innerHTML='';
 
   if(sorted.length===0) {
@@ -604,20 +712,19 @@ function renderLedger() {
         <td class="r">${amtHtml}</td>
         <td style="color:#888;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis">${note}</td>
         <td class="r" style="font-weight:500">$${fmt(running)}</td>
-        <td><button class="del-btn" onclick="deleteLedgerEntry(${e.id})" title="Delete">×</button></td>
+        <td><button class="del-btn" onclick="deleteLedgerEntry('${e.firestoreId}', ${e.id})" title="Delete">×</button></td>
       `;
       tbody.appendChild(tr);
     });
   }
 
   const bal=cashBalance();
-  document.getElementById('bal-display').textContent='$'+fmt(bal);
-  document.getElementById('bal-display').className='bal-main'+(bal<0?' neg':'');
+  const balEl=document.getElementById('bal-display');
+  if(balEl){balEl.textContent='$'+fmt(bal);balEl.className='bal-main'+(bal<0?' neg':'');}
   const deps=ledger.filter(e=>e.type==='deposit').reduce((a,e)=>a+e.amount,0);
   const wits=ledger.filter(e=>e.type==='withdrawal').reduce((a,e)=>a+e.amount,0);
-  document.getElementById('bal-sub').textContent=deps>0
-    ?`$${fmt(deps)} deposited · $${fmt(wits)} withdrawn`
-    :'No transactions yet';
+  const subEl=document.getElementById('bal-sub');
+  if(subEl) subEl.textContent=deps>0?`$${fmt(deps)} deposited · $${fmt(wits)} withdrawn`:'No transactions yet';
 }
 
 /* ══════════════════════════════════════
@@ -629,13 +736,11 @@ function currentYM() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 
-/* Last day of a given YYYY-MM */
 function lastDayOfMonth(ym) {
   const [y,m]=ym.split('-').map(Number);
   return new Date(y,m,0).toISOString().slice(0,10);
 }
 
-/* All months from first ledger entry to current */
 function allMonths() {
   if(!ledger.length) return [];
   const dates=ledger.map(e=>e.date).sort();
@@ -651,13 +756,11 @@ function allMonths() {
   return months;
 }
 
-/* Take (or retake) a snapshot for a given YYYY-MM */
 async function takeSnapshot(ym, silent=false) {
   const endDate=lastDayOfMonth(ym);
   const holdingsAsOf=computeHoldingsAsOf(endDate);
   const cash=cashBalanceAsOf(endDate);
 
-  // fetch prices for each holding
   const priceResults=await Promise.allSettled(
     holdingsAsOf.map(h=>fetchPrice(h.ticker).then(r=>({ticker:h.ticker,...r})))
   );
@@ -675,7 +778,7 @@ async function takeSnapshot(ym, silent=false) {
   const totalCost=holdingData.reduce((s,h)=>s+h.cost,0);
   const totalGain=holdingData.reduce((s,h)=>s+(h.gain||0),0);
 
-  snapshots[ym]={
+  const snapData={
     ym,
     takenAt: new Date().toISOString(),
     cash,
@@ -685,28 +788,28 @@ async function takeSnapshot(ym, silent=false) {
     totalGain,
     totalWithCash: totalMktValue+cash,
   };
-  localStorage.setItem('snapshots', JSON.stringify(snapshots));
+
+  await _dbSaveSnapshot(ym, snapData);
+  snapshots[ym] = snapData;
   if(!silent) renderSnapshots();
 }
 
-/* Delete a snapshot */
-function deleteSnapshot(ym) {
+async function deleteSnapshot(ym) {
+  await _dbDeleteSnapshot(ym);
   delete snapshots[ym];
-  localStorage.setItem('snapshots', JSON.stringify(snapshots));
   renderSnapshots();
 }
 
-/* Render the snapshots tab */
 function renderSnapshots() {
   const months=allMonths();
   const container=document.getElementById('snap-content');
+  if(!container) return;
 
   if(!months.length) {
     container.innerHTML=`<div class="snap-empty">No transactions yet. Add some activity in the Account tab first.</div>`;
     return;
   }
 
-  // Default to most recent month
   if(!snapViewMonth || !months.includes(snapViewMonth)) {
     snapViewMonth=months[months.length-1];
   }
@@ -714,14 +817,10 @@ function renderSnapshots() {
   const idx=months.indexOf(snapViewMonth);
   const snap=snapshots[snapViewMonth]||null;
   const sortedSnaps=months.filter(m=>snapshots[m]).map(m=>snapshots[m]);
-
-  // --- Trend chart data (last 12 months with snapshots) ---
   const trendMonths=sortedSnaps.slice(-12);
 
-  // --- Build HTML ---
   let html='';
 
-  // Month navigator + capture button
   html+=`<div class="snap-toolbar">
     <div class="month-nav">
       <button onclick="snapNav(-1)" ${idx===0?'disabled':''}>‹</button>
@@ -746,49 +845,24 @@ function renderSnapshots() {
     const takenAt=new Date(snap.takenAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
     const totalRet=snap.totalCost?(snap.totalGain/snap.totalCost*100):0;
 
-    // Summary cards
     html+=`<div class="snap-section-title">Portfolio summary · captured ${takenAt}</div>
     <div class="snap-card-grid">
-      <div class="snap-card">
-        <div class="snap-card-label">Total value (incl. cash)</div>
-        <div class="snap-card-value">$${fmt(snap.totalWithCash)}</div>
-      </div>
-      <div class="snap-card">
-        <div class="snap-card-label">Equity value</div>
-        <div class="snap-card-value">$${fmt(snap.totalMktValue)}</div>
-      </div>
-      <div class="snap-card">
-        <div class="snap-card-label">Cash</div>
-        <div class="snap-card-value">$${fmt(snap.cash)}</div>
-      </div>
-      <div class="snap-card">
-        <div class="snap-card-label">Cost basis</div>
-        <div class="snap-card-value">$${fmt(snap.totalCost)}</div>
-      </div>
-      <div class="snap-card">
-        <div class="snap-card-label">Unrealised gain/loss</div>
-        <div class="snap-card-value ${snap.totalGain>=0?'pos':'neg'}">${snap.totalGain>=0?'+':'-'}$${fmt(Math.abs(snap.totalGain))}</div>
-      </div>
-      <div class="snap-card">
-        <div class="snap-card-label">Overall return</div>
-        <div class="snap-card-value ${totalRet>=0?'pos':'neg'}">${fmtPct(totalRet)}</div>
-      </div>
+      <div class="snap-card"><div class="snap-card-label">Total value (incl. cash)</div><div class="snap-card-value">$${fmt(snap.totalWithCash)}</div></div>
+      <div class="snap-card"><div class="snap-card-label">Equity value</div><div class="snap-card-value">$${fmt(snap.totalMktValue)}</div></div>
+      <div class="snap-card"><div class="snap-card-label">Cash</div><div class="snap-card-value">$${fmt(snap.cash)}</div></div>
+      <div class="snap-card"><div class="snap-card-label">Cost basis</div><div class="snap-card-value">$${fmt(snap.totalCost)}</div></div>
+      <div class="snap-card"><div class="snap-card-label">Unrealised gain/loss</div><div class="snap-card-value ${snap.totalGain>=0?'pos':'neg'}">${snap.totalGain>=0?'+':'-'}$${fmt(Math.abs(snap.totalGain))}</div></div>
+      <div class="snap-card"><div class="snap-card-label">Overall return</div><div class="snap-card-value ${totalRet>=0?'pos':'neg'}">${fmtPct(totalRet)}</div></div>
     </div>`;
 
-    // Holdings table
     html+=`<div class="snap-section-title">Holdings</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr>
-          <th>Ticker</th>
-          <th class="r">Shares</th>
-          <th class="r">Avg cost</th>
-          <th class="r">Price at snapshot</th>
-          <th class="r">Mkt value</th>
-          <th class="r">Gain/loss</th>
-          <th class="r">Return</th>
-        </tr></thead>
-        <tbody>`;
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Ticker</th><th class="r">Shares</th><th class="r">Avg cost</th>
+        <th class="r">Price at snapshot</th><th class="r">Mkt value</th>
+        <th class="r">Gain/loss</th><th class="r">Return</th>
+      </tr></thead>
+      <tbody>`;
 
     if(!snap.holdings.length) {
       html+=`<tr><td colspan="7" class="empty">No holdings at end of ${monthLabel(snapViewMonth)}.</td></tr>`;
@@ -816,30 +890,25 @@ function renderSnapshots() {
     html+=`</tbody></table></div>`;
   }
 
-  // Portfolio value trend (all months with snapshots)
   if(trendMonths.length > 1) {
     const maxVal=Math.max(...trendMonths.map(s=>s.totalWithCash),1);
     const bars=trendMonths.map(s=>{
       const h=Math.max(4,Math.round((s.totalWithCash/maxVal)*40));
       const col=s.totalGain>=0?'#1D9E75':'#E24B4A';
       const tip=`${monthLabel(s.ym)}: $${fmt(s.totalWithCash)}`;
-      const lbl=s.ym.slice(5); // "MM"
+      const lbl=s.ym.slice(5);
       return {h,col,tip,lbl};
     });
-
     html+=`<div class="snap-section-title">Portfolio value trend</div>
     <div style="background:#fff;border:1px solid #e5e5e3;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.5rem;display:inline-block;min-width:220px">
       <div class="trend-bar-wrap">
         ${bars.map(b=>`<div class="trend-bar" style="height:${b.h}px;background:${b.col}" data-tip="${b.tip}"></div>`).join('')}
       </div>
-      <div class="trend-label">
-        ${bars.map(b=>`<span>${b.lbl}</span>`).join('')}
-      </div>
+      <div class="trend-label">${bars.map(b=>`<span>${b.lbl}</span>`).join('')}</div>
     </div>`;
   }
 
   html+=`<div class="snap-info">Snapshots capture holdings and live prices at the time of capture, not necessarily end-of-month closing prices. Retake any month to refresh.</div>`;
-
   container.innerHTML=html;
 }
 
@@ -860,9 +929,6 @@ async function doTakeSnapshot(ym) {
   if(btn){btn.textContent='Fetching…';btn.disabled=true;}
   await takeSnapshot(ym);
 }
-
-/* init */
-renderAll();
 </script>
 </body>
 </html>
